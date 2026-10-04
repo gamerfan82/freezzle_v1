@@ -1,0 +1,1568 @@
+# PHASE 17 — COMPLETE DEALER MANAGEMENT & DEALER OPERATIONS
+
+You are continuing the Freezzle project after the successful completion of Phase 15.
+
+Phase 16 — Chat is intentionally DEFERRED.
+
+DO NOT implement, enable, migrate, or activate Chat in this phase.
+
+This phase is exclusively for completing Dealer Management and Dealer Operations.
+
+Do NOT automatically start Phase 18.
+
+---
+
+# 1. CURRENT PROJECT STATE
+
+The project has successfully completed:
+
+* Phase 13 — Security Hardening
+* Phase 14 — Search, Profile & Views
+* Phase 15 — Notifications & Reports
+
+Latest verified Phase 15 state:
+
+* Prisma: Notification + Report models implemented
+* Backend NotificationsModule: complete
+* Backend ReportsModule: complete
+* User + Admin report APIs: complete
+* IDOR protection: implemented
+* Notification/report throttling: implemented
+* Listing approve/reject creates server notifications
+* Frontend notification/report panels migrated to API
+* localStorage is only a guest fallback where appropriate
+* Backend Unit: 118/118 PASS
+* Backend E2E: 137/137 PASS
+* Backend build: PASS
+* Frontend TypeScript: PASS
+* Prisma validate: PASS
+* Prisma generate: PASS
+* Prisma migration status: PASS
+* Phase 15 migration applied
+* Phase 15 report appended to `log.txt`
+
+Known environment limitation:
+
+* Frontend build can fail when Google Fonts/Vazirmatn cannot be reached.
+* This is an environment/network limitation, not a Phase 15 implementation failure.
+
+Existing project architecture already includes Dealer functionality from earlier phases.
+
+Do NOT rebuild existing Dealer functionality from scratch.
+
+---
+
+# 2. PHASE 16 IS DEFERRED
+
+This is an explicit requirement.
+
+Phase 16 — Chat is NOT part of this phase.
+
+Do NOT implement:
+
+* Chat
+* Conversations
+* Messages
+* WebSocket
+* Socket.IO
+* WebRTC chat
+* typing indicators
+* online chat presence
+* chat notifications
+* message delivery
+* message read receipts
+
+Do not create Chat database models.
+
+Do not create Conversation or Message migrations.
+
+Do not enable any currently disabled Chat UI.
+
+If existing Chat/localStorage code exists, leave it untouched unless a Dealer change accidentally affects it.
+
+Document Chat as:
+
+```text
+DEFERRED — Phase 16 intentionally skipped
+```
+
+---
+
+# 3. PRIMARY OBJECTIVE
+
+Complete Dealer Management so that Dealers become a properly managed server-authoritative entity.
+
+The final Dealer architecture should support:
+
+```text
+ADMIN
+  │
+  ├── create/manage dealer
+  ├── approve
+  ├── reject
+  ├── suspend
+  ├── reactivate
+  ├── inspect dealer
+  └── manage dealer employees where supported
+          │
+          ▼
+       DEALER
+          │
+          ├── profile
+          ├── status
+          ├── listings
+          └── employees
+```
+
+The exact capabilities must be based on the current source code and schema.
+
+Do not invent functionality that the existing product does not need.
+
+---
+
+# 4. STEP 0 — COMPLETE CURRENT-STATE AUDIT
+
+Before changing anything, inspect:
+
+```text
+AGENTS.md
+log.txt
+backend/prisma/schema.prisma
+backend/src/
+src/lib/api.ts
+src/components/
+src/app/
+```
+
+Specifically inspect:
+
+## Backend
+
+* DealersModule
+* DealersController
+* DealersService
+* Dealer DTOs
+* User model
+* Dealer model
+* AuthModule
+* RolesGuard
+* JWT strategy/guards
+* Session system
+* Listing ownership
+* listing authorization
+* throttling
+* notification integration
+* existing tests
+
+## Frontend
+
+Inspect:
+
+* DealerPanelShell
+* dealer profile UI
+* dealer listing UI
+* dealer authentication
+* admin DealersTab
+* dealer employee UI if present
+* dealer status handling
+* dealer localStorage
+* dealer API methods
+* dealer error/loading states
+
+## Logs
+
+Read the relevant Phase 5, Phase 6, Phase 10, Phase 13, Phase 14 and Phase 15 entries.
+
+Do not assume the old audit is completely accurate.
+
+Current source code is authoritative.
+
+---
+
+# 5. EXISTING DEALER FUNCTIONALITY MUST BE PRESERVED
+
+Earlier phases already implemented Dealer functionality.
+
+Preserve existing functionality including, where currently present:
+
+* dealer registration
+* dealer login
+* dealer profile
+* dealer approval/rejection
+* dealer listing management
+* dealer listing ownership
+* dealer listing CRUD
+* dealer authorization
+* dealer role handling
+* admin dealer management
+
+Do not break existing API contracts unnecessarily.
+
+Do not duplicate existing endpoints.
+
+---
+
+# 6. PHASE 17.1 — DEALER DATA MODEL AUDIT
+
+Inspect the current Prisma schema.
+
+Determine whether the existing Dealer model contains enough information for:
+
+* status
+* owner/user relation
+* company/dealer name
+* contact information
+* approval state
+* rejection information
+* timestamps
+
+Do not add fields that already exist.
+
+Do not duplicate User and Dealer information unnecessarily.
+
+If a schema change is genuinely required, make the smallest appropriate migration.
+
+Possible Dealer lifecycle:
+
+```text
+PENDING
+   │
+   ├── APPROVED
+   │      │
+   │      ├── SUSPENDED
+   │      │      │
+   │      │      └── APPROVED
+   │      │
+   │      └── ...
+   │
+   └── REJECTED
+```
+
+Use the existing status enum if one exists.
+
+Do not invent a second Dealer status system.
+
+---
+
+# 7. DEALER STATUS MACHINE
+
+Implement a server-authoritative Dealer status transition policy.
+
+The backend must control valid transitions.
+
+Do NOT allow clients to send:
+
+```text
+status: "APPROVED"
+```
+
+and directly change their own status.
+
+Only authorized admin operations may perform privileged status transitions.
+
+At minimum inspect support for:
+
+* PENDING
+* APPROVED
+* REJECTED
+* SUSPENDED
+
+Only use states that fit the existing schema/product.
+
+Define valid transitions explicitly.
+
+For example:
+
+```text
+PENDING → APPROVED
+PENDING → REJECTED
+
+APPROVED → SUSPENDED
+
+SUSPENDED → APPROVED
+
+REJECTED → PENDING
+```
+
+Do not blindly implement this exact matrix if the existing business rules differ.
+
+Invalid transitions must return an appropriate error.
+
+---
+
+# 8. PHASE 17.2 — DEALER APPROVAL / REJECTION
+
+Review existing admin approval/rejection endpoints.
+
+Ensure:
+
+* only ADMIN can approve
+* only ADMIN can reject
+* dealer cannot approve itself
+* dealer cannot reject itself
+* another dealer cannot change dealer status
+* status changes are server-authoritative
+
+When rejecting a dealer, support a reason if the current UI/business logic requires it.
+
+Validate the reason length.
+
+Do not allow arbitrary internal fields from the client.
+
+---
+
+# 9. DEALER SUSPENSION
+
+Implement dealer suspension if it is not already correctly implemented.
+
+Recommended behavior:
+
+```text
+ADMIN
+  ↓
+Suspend Dealer
+  ↓
+Dealer status = SUSPENDED
+```
+
+A suspended dealer must not be able to perform privileged dealer operations.
+
+Review all relevant endpoints:
+
+* dealer login
+* dealer profile
+* listing creation
+* listing update
+* listing delete
+* listing status change
+* upload association
+* other dealer-only operations
+
+Do not rely only on frontend hiding.
+
+The backend must enforce suspension.
+
+---
+
+# 10. SUSPENDED DEALER AUTHORIZATION
+
+This is a critical security requirement.
+
+A dealer with:
+
+```text
+status = SUSPENDED
+```
+
+must not be able to continue using dealer privileges merely because they already possess a valid JWT.
+
+Inspect the existing JWT/session architecture.
+
+Implement the smallest safe solution.
+
+Possible strategies include:
+
+* status check during authenticated dealer operations
+* status validation in the appropriate guard/service
+* session revocation when suspended
+
+Do not blindly revoke all User sessions unless that matches the existing authentication design.
+
+Do not break normal USER authentication.
+
+Test:
+
+```text
+APPROVED dealer → dealer endpoint = allowed
+
+SUSPENDED dealer → dealer endpoint = forbidden
+
+ADMIN → dealer management = allowed
+```
+
+---
+
+# 11. DEALER SESSION CONSISTENCY
+
+Inspect how dealer status changes interact with:
+
+* access JWT
+* refresh session
+* logout
+* refresh
+
+If a dealer becomes suspended, ensure refresh cannot silently restore an unauthorized dealer state.
+
+Do not create a second authentication/session system.
+
+Reuse the Phase 10 session architecture.
+
+---
+
+# 12. PHASE 17.3 — DEALER PROFILE
+
+Make the dealer profile server-authoritative.
+
+Review:
+
+```text
+GET dealer profile
+PATCH dealer profile
+```
+
+or the project's existing equivalent.
+
+Dealer-editable fields must be explicitly allowlisted.
+
+A dealer must never be able to modify:
+
+* role
+* user status
+* dealer approval status
+* owner ID
+* admin flags
+* session fields
+* internal timestamps
+* approval/rejection metadata
+
+Do not expose internal database fields unnecessarily.
+
+---
+
+# 13. DEALER PROFILE VALIDATION
+
+Validate:
+
+* company/dealer name
+* phone
+* city
+* address
+* contact information
+* other existing dealer fields
+
+Use:
+
+* maximum lengths
+* appropriate formats
+* DTO validation
+* whitelist
+* forbidden unknown fields
+
+Do not accept arbitrary objects.
+
+Do not use `any` unnecessarily.
+
+---
+
+# 14. PHASE 17.4 — DEALER EMPLOYEES
+
+Inspect whether the current schema/UI already has Dealer Employee functionality.
+
+If DealerEmployee functionality is absent:
+
+First determine whether it is genuinely required by the existing frontend/product.
+
+If required, implement a minimal employee architecture.
+
+Potential model:
+
+```text
+DealerEmployee
+- id
+- dealerId
+- userId OR employee identity
+- role/permissions
+- status
+- createdAt
+- updatedAt
+```
+
+Do NOT implement this if the existing application does not actually require employees yet.
+
+If implemented, employees must belong to exactly one dealer.
+
+---
+
+# 15. DEALER EMPLOYEE AUTHORIZATION
+
+If employees are implemented, enforce:
+
+```text
+Dealer A employee
+    ↓
+Dealer A resources = allowed
+
+Dealer B resources
+    ↓
+403
+```
+
+Employees must never access another dealer's listings.
+
+Do not trust a client-provided dealer ID.
+
+Resolve ownership server-side.
+
+---
+
+# 16. EMPLOYEE PERMISSIONS
+
+If employee roles already exist, preserve them.
+
+If no employee permission system exists, keep the initial model simple.
+
+Possible permissions:
+
+```text
+VIEW
+MANAGE_LISTINGS
+MANAGE_PROFILE
+```
+
+Do not build a complex ACL/RBAC framework unless the existing product requires it.
+
+---
+
+# 17. PHASE 17.5 — DEALER LISTING OWNERSHIP
+
+Audit all dealer listing operations.
+
+Verify:
+
+* create
+* read
+* update
+* delete/archive
+* status changes
+* image operations
+* favorite interactions where relevant
+
+A dealer must only manage listings belonging to that dealer.
+
+Test:
+
+```text
+Dealer A
+→ Dealer A listing = allowed
+
+Dealer A
+→ Dealer B listing = 403
+```
+
+Do not rely on listing IDs alone.
+
+---
+
+# 18. DEALER LISTING STATUS
+
+Review interaction between:
+
+* Dealer status
+* Listing status
+* Admin moderation
+
+A suspended dealer must not be able to:
+
+* create new listings
+* update listings
+* approve its own listings
+* force ACTIVE
+* bypass moderation
+
+Preserve the Phase 13 server-side moderation protections.
+
+Do not weaken:
+
+```text
+non-admin cannot self-approve
+```
+
+---
+
+# 19. DEALER LISTING VISIBILITY
+
+Ensure public APIs continue to expose only appropriate ACTIVE listings.
+
+Dealer-private APIs may expose the dealer's own listings according to existing authorization.
+
+Do not accidentally make:
+
+* PENDING
+* REJECTED
+* DRAFT
+* SUSPENDED-related content
+
+public.
+
+---
+
+# 20. PHASE 17.6 — ADMIN DEALER MANAGEMENT
+
+Review the existing `DealersTab`.
+
+It should become fully API-driven.
+
+Admin should be able to:
+
+* list dealers
+* search dealers if UI supports it
+* inspect dealer
+* approve
+* reject
+* suspend
+* reactivate
+* view status
+* view relevant profile information
+
+Only implement UI actions that have corresponding backend authorization.
+
+---
+
+# 21. ADMIN DEALER FILTERING
+
+If the existing UI supports filters, implement server-side filtering.
+
+Potential filters:
+
+* status
+* city
+* search
+* creation date
+
+Use only required filters.
+
+Validate all filter values.
+
+Do not expose arbitrary Prisma filters.
+
+---
+
+# 22. ADMIN DEALER PAGINATION
+
+If the dealer list can grow, use server-side pagination.
+
+Do not load an unlimited number of dealers.
+
+Support:
+
+```text
+page
+limit
+```
+
+with validation and a maximum limit.
+
+Use deterministic ordering.
+
+Return pagination metadata according to existing project conventions.
+
+---
+
+# 23. DEALER SEARCH
+
+If the Admin DealersTab supports search:
+
+Search appropriate fields such as:
+
+* dealer/company name
+* phone
+* city
+* email where appropriate
+
+Do not expose sensitive fields.
+
+Use safe Prisma queries.
+
+Do not allow arbitrary query construction.
+
+---
+
+# 24. PHASE 17.7 — DEALER NOTIFICATIONS
+
+Reuse the Phase 15 Notification system.
+
+Do NOT create another notification system.
+
+When appropriate:
+
+```text
+Admin approves dealer
+       ↓
+Dealer notification
+```
+
+```text
+Admin rejects dealer
+       ↓
+Dealer notification
+```
+
+```text
+Admin suspends dealer
+       ↓
+Dealer notification
+```
+
+```text
+Admin reactivates dealer
+       ↓
+Dealer notification
+```
+
+Only create notifications once per state transition.
+
+Do not generate duplicates.
+
+---
+
+# 25. DEALER NOTIFICATION CONTENT
+
+Notifications should contain useful but non-sensitive information.
+
+For rejection/suspension:
+
+* clear status
+* safe explanation where appropriate
+
+Do not expose internal admin notes.
+
+Do not include secrets.
+
+Do not leak information about other users.
+
+---
+
+# 26. PHASE 17.8 — DEALER API CLIENT
+
+Update:
+
+```text
+src/lib/api.ts
+```
+
+using the existing API client.
+
+Do NOT create another HTTP client.
+
+Add typed methods only where needed.
+
+Reuse:
+
+* JWT handling
+* refresh handling
+* credentials
+* error handling
+* 401 handling
+* 403 handling
+* throttling behavior
+
+Avoid `any`.
+
+---
+
+# 27. DEALER FRONTEND STATE
+
+Dealer status must come from the server.
+
+Do not trust stale localStorage for:
+
+* approval state
+* suspension state
+* role
+* dealer permissions
+
+On login/profile refresh:
+
+```text
+API
+ ↓
+current dealer state
+ ↓
+UI
+```
+
+If localStorage contains stale dealer state, server data wins.
+
+---
+
+# 28. DEALER PANEL BEHAVIOR
+
+Update DealerPanelShell where necessary.
+
+For:
+
+```text
+APPROVED
+```
+
+normal dealer operations remain available.
+
+For:
+
+```text
+PENDING
+```
+
+show appropriate restricted state.
+
+For:
+
+```text
+REJECTED
+```
+
+show appropriate state and reason if available.
+
+For:
+
+```text
+SUSPENDED
+```
+
+show a clear suspended state and disable dealer operations.
+
+Do not pretend an operation succeeded if the backend rejected it.
+
+---
+
+# 29. DEALER ERROR HANDLING
+
+Correct all dealer operations that currently behave like:
+
+```text
+API fails
+↓
+local state still says success
+```
+
+Instead:
+
+```text
+API fails
+↓
+show error
+↓
+preserve current valid server state
+↓
+allow retry
+```
+
+Handle:
+
+* 401
+* 403
+* 404
+* 409
+* 400/422
+* 429
+* 500
+
+using existing API conventions.
+
+---
+
+# 30. DEALER LOCALSTORAGE AUDIT
+
+Search for all Dealer-related localStorage keys.
+
+Classify each:
+
+1. authoritative server data
+2. UI preference
+3. temporary state
+4. guest fallback
+5. obsolete state
+
+Persistent Dealer information should not have a competing localStorage source of truth.
+
+Do not blindly delete unrelated keys.
+
+Stop writing obsolete authoritative Dealer data.
+
+---
+
+# 31. SECURITY AUDIT
+
+Perform a focused Dealer security review.
+
+Check:
+
+### IDOR
+
+Dealer A cannot access:
+
+* Dealer B profile
+* Dealer B listings
+* Dealer B employees
+* Dealer B reports if restricted
+* Dealer B internal data
+
+### Role escalation
+
+Dealer cannot become:
+
+* ADMIN
+* another Dealer
+* approved without admin
+
+### Status escalation
+
+Dealer cannot:
+
+* approve itself
+* reactivate itself
+* unsuspend itself
+* change its own Dealer status
+
+### Ownership
+
+Dealer cannot:
+
+* change listing owner
+* transfer ownership arbitrarily
+* associate another dealer's upload/listing
+
+### Authentication
+
+Suspended Dealer cannot regain dealer privileges through refresh.
+
+---
+
+# 32. THROTTLING
+
+Reuse the Phase 13 throttling architecture.
+
+Review whether Dealer endpoints require explicit throttling.
+
+Potential sensitive endpoints:
+
+* dealer login
+* dealer registration
+* approval
+* rejection
+* suspension
+* profile updates
+
+Do NOT create a new throttling framework.
+
+Use existing decorators/configuration.
+
+Do not accidentally apply authentication throttles globally.
+
+---
+
+# 33. AUDIT LOGGING
+
+Inspect whether the current project already has an AuditLog model.
+
+If it exists, use it where appropriate for sensitive Dealer admin actions.
+
+Potential actions:
+
+* APPROVE_DEALER
+* REJECT_DEALER
+* SUSPEND_DEALER
+* REACTIVATE_DEALER
+
+If AuditLog does NOT exist, do not automatically build a complete audit-log system in this phase unless it is required for an existing Dealer security workflow.
+
+Document the decision.
+
+---
+
+# 34. DATABASE MIGRATION SAFETY
+
+If schema changes are required:
+
+Use a normal Prisma migration.
+
+Never:
+
+```text
+prisma migrate reset
+```
+
+Never:
+
+```text
+db push --force-reset
+```
+
+Never delete existing migration files.
+
+Never modify applied migration history.
+
+Before migration:
+
+```powershell
+npx prisma validate
+```
+
+After migration:
+
+```powershell
+npx prisma generate
+npx prisma migrate status
+```
+
+Verify all previous migrations remain applied.
+
+---
+
+# 35. TESTING — UNIT
+
+Add/update unit tests for:
+
+## Dealer status
+
+* valid transition
+* invalid transition
+* admin authorization
+* self-approval blocked
+* self-suspension/reactivation blocked
+
+## Dealer profile
+
+* valid update
+* forbidden fields
+* validation failures
+
+## Suspension
+
+* suspended dealer denied dealer operations
+* approved dealer allowed
+
+## Ownership
+
+* owner access
+* foreign dealer access denied
+
+## Employees
+
+Only if implemented:
+
+* employee ownership
+* cross-dealer denial
+* permissions
+
+## Notifications
+
+* approve notification
+* reject notification
+* suspend notification
+* reactivate notification
+* no duplicate notifications
+
+Do not remove existing tests.
+
+---
+
+# 36. TESTING — E2E
+
+Add E2E tests for the complete Dealer lifecycle.
+
+### Registration
+
+```text
+Dealer registration
+→ PENDING
+```
+
+### Approval
+
+```text
+ADMIN
+→ approve
+→ APPROVED
+→ dealer notification
+```
+
+### Rejection
+
+```text
+ADMIN
+→ reject
+→ REJECTED
+→ notification
+```
+
+### Suspension
+
+```text
+ADMIN
+→ suspend
+→ SUSPENDED
+→ dealer operations blocked
+```
+
+### Reactivation
+
+```text
+ADMIN
+→ reactivate
+→ APPROVED
+→ dealer operations restored
+```
+
+### IDOR
+
+```text
+Dealer A
+→ Dealer B listing
+→ 403
+```
+
+### Privilege escalation
+
+```text
+Dealer
+→ approve itself
+→ 403
+```
+
+```text
+Dealer
+→ suspend/reactivate itself
+→ 403
+```
+
+### Admin
+
+```text
+ADMIN
+→ dealer management
+→ allowed
+```
+
+### Non-admin
+
+```text
+USER
+→ dealer admin endpoint
+→ 403
+```
+
+---
+
+# 37. REGRESSION TESTS
+
+Before completing Phase 17, verify previous phases.
+
+## Authentication
+
+* login
+* refresh
+* logout
+* `/me`
+
+## Listings
+
+* public ACTIVE listings
+* search
+* filters
+* sorting
+* pagination
+* views
+
+## Favorites
+
+* add
+* remove
+* ownership
+
+## Upload
+
+* MIME validation
+* magic bytes
+* ownership
+
+## Notifications
+
+* read
+* unread
+* listing moderation notifications
+
+## Reports
+
+* create
+* admin review
+* status update
+
+## Admin moderation
+
+* approve
+* reject
+* flags
+* authorization
+
+Do not allow Dealer changes to regress any of these.
+
+---
+
+# 38. FRONTEND VERIFICATION
+
+Run:
+
+```powershell
+npx tsc --noEmit
+```
+
+Run:
+
+```powershell
+npm run lint
+```
+
+Do not mass-fix existing lint debt.
+
+Clearly report whether new lint errors were introduced.
+
+Then:
+
+```powershell
+npm run build
+```
+
+If the only frontend build failure is:
+
+```text
+Failed to fetch 'Vazirmatn' from Google Fonts
+```
+
+record it as the known network/environment limitation.
+
+Do not misclassify it as a Dealer implementation failure.
+
+---
+
+# 39. BACKEND VERIFICATION
+
+Run:
+
+```powershell
+npm run build
+```
+
+Then:
+
+```powershell
+npm test -- --runInBand
+```
+
+Run the project's E2E suite using its actual configured command.
+
+Then:
+
+```powershell
+npx prisma validate
+npx prisma generate
+npx prisma migrate status
+```
+
+All existing tests must remain green.
+
+---
+
+# 40. DATABASE INTEGRITY CHECK
+
+After testing:
+
+Verify:
+
+* existing users remain intact
+* existing dealers remain intact
+* existing listings remain intact
+* existing sessions remain intact
+* existing notifications remain intact
+* existing reports remain intact
+
+Do not delete test data belonging to real development users.
+
+If temporary test data is created, clean only the records created specifically for the test.
+
+Do not perform a database reset.
+
+---
+
+# 41. PERFORMANCE REVIEW
+
+Avoid:
+
+* N+1 dealer queries
+* N+1 employee queries
+* loading all dealers unnecessarily
+* loading all dealer listings unnecessarily
+* duplicate notification queries
+* repeated profile requests
+* unnecessary refresh requests
+
+Use Prisma relations/select/include carefully.
+
+Do not fetch sensitive fields unnecessarily.
+
+---
+
+# 42. UI PRESERVATION
+
+Do NOT redesign the entire Dealer UI.
+
+Preserve:
+
+* current visual design
+* Persian language
+* existing navigation
+* responsive layout
+* mobile usability
+* existing listing management workflow
+
+Only change UI where required for the new server-authoritative Dealer behavior.
+
+---
+
+# 43. CHAT MUST REMAIN DISABLED
+
+This requirement must be verified before completion.
+
+Confirm that Phase 17 did NOT:
+
+* create Chat models
+* create Message models
+* create Conversation models
+* create WebSocket gateways
+* enable Chat UI
+* enable Chat routes
+* enable Chat notifications
+
+Final report must contain:
+
+```text
+Phase 16 — Chat: DEFERRED
+Chat/WebSocket implementation: NOT STARTED
+```
+
+---
+
+# 44. FINAL LOGGING
+
+Append a new section to:
+
+```text
+log.txt
+```
+
+Do NOT overwrite existing logs.
+
+Use exactly:
+
+```text
+PHASE 17 — COMPLETE DEALER MANAGEMENT — COMPLETION REPORT
+```
+
+Include:
+
+## Scope
+
+What was implemented.
+
+## Dealer backend
+
+* models
+* services
+* controllers
+* DTOs
+* status machine
+* authorization
+
+## Dealer lifecycle
+
+* registration
+* approval
+* rejection
+* suspension
+* reactivation
+
+## Dealer profile
+
+* GET
+* PATCH
+* validation
+
+## Dealer employees
+
+State:
+
+* implemented
+* partially implemented
+* deferred
+
+and explain why.
+
+## Dealer listings
+
+* ownership
+* CRUD
+* moderation
+* suspension restrictions
+
+## Notifications
+
+List Dealer-related notification events implemented.
+
+## Frontend
+
+List changed Dealer components and API integration.
+
+## Security
+
+List:
+
+* IDOR protections
+* status protections
+* role protections
+* suspension enforcement
+* validation
+
+## Database
+
+Record:
+
+* models changed
+* migrations added
+* destructive operations
+
+## Tests
+
+Record exact results:
+
+```text
+Unit: X/X
+E2E: X/X
+```
+
+## Builds
+
+```text
+Backend build: PASS/FAIL
+Frontend TypeScript: PASS/FAIL
+Frontend build: PASS/FAIL
+Lint: ...
+```
+
+## Prisma
+
+```text
+Prisma validate: PASS/FAIL
+Prisma generate: PASS/FAIL
+Prisma migrate status: PASS/FAIL
+```
+
+## Known limitations
+
+Be explicit.
+
+## Deferred
+
+At minimum:
+
+```text
+Phase 16 — Chat: DEFERRED
+WebSocket: DEFERRED
+SMS: DEFERRED
+Email: DEFERRED
+Push notifications: DEFERRED
+```
+
+## Final status
+
+Use exactly one:
+
+```text
+PHASE 17: COMPLETE
+```
+
+or:
+
+```text
+PHASE 17: PARTIAL
+```
+
+or:
+
+```text
+PHASE 17: BLOCKED
+```
+
+---
+
+# 45. ABSOLUTE STOP CONDITION
+
+When Phase 17 is complete:
+
+STOP.
+
+Do NOT automatically start Phase 18.
+
+Do NOT implement:
+
+* Chat
+* WebSockets
+* Messages
+* Conversations
+* SMS
+* email
+* push notifications
+* PostgreSQL production migration
+* full Admin 21-tab migration
+* unrelated UI redesign
+* unrelated refactoring
+
+Only provide the final Phase 17 execution report.
+
+---
+
+# 46. FINAL SUCCESS CRITERIA
+
+Phase 17 may be marked:
+
+```text
+PHASE 17: COMPLETE
+```
+
+only when:
+
+* Dealer management is server-authoritative
+* Dealer status transitions are protected
+* self-approval is impossible
+* self-reactivation is impossible
+* suspension is enforced server-side
+* suspended dealers cannot regain privileges through refresh
+* Dealer listing ownership is enforced
+* Dealer profile is API-authoritative
+* Admin Dealer management works
+* IDOR tests pass
+* authorization tests pass
+* Dealer notifications use the Phase 15 notification system
+* no duplicate notification path exists
+* existing listing moderation remains intact
+* existing authentication/session behavior remains intact
+* existing Phase 13 security remains intact
+* existing Phase 14 search/profile/views remain intact
+* existing Phase 15 notifications/reports remain intact
+* backend tests pass
+* E2E tests pass
+* TypeScript passes
+* backend build passes
+* Prisma checks pass
+* no destructive database operation occurred
+* `log.txt` is updated
+* Chat remains completely deferred
+
+If required functionality is incomplete, honestly report:
+
+```text
+PHASE 17: PARTIAL
+```
+
+Do not mark the phase complete merely because the majority of tasks passed.
+
+END OF PHASE 17.
